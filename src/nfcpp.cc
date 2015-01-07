@@ -75,7 +75,7 @@ public:
 	{
 	}
 
-	~NFCTagInternal()
+	virtual ~NFCTagInternal()
 	{
 		if (tag)
 		{
@@ -110,10 +110,43 @@ public:
 		}
 	}
 
-private:
+protected:
 	MifareTag tag;
 };
 
+
+namespace mifare {
+
+	class MifareClassicTagInternal : MifareClassicTag, NFCTagInternal
+	{
+		public:
+			bool connect()
+			{
+				return mifare_classic_connect(tag) == 0;
+			}
+
+			bool disconnect()
+			{
+				return mifare_classic_disconnect(tag) == 0;
+			}
+
+			bool authenticate(int block, MifareClassicKey key, enum MifareClassicKeyType type)
+			{
+
+			}
+
+			bool read(int block, MifareClassicDataBlock* data)
+			{
+
+			}
+
+			bool write(int block, MifareClassicDataBlock data)
+			{
+
+			}
+	};
+
+}
 
 class NFCTagReaderInternal : NFCTagReader
 {
@@ -156,9 +189,7 @@ private:
 	{
 		// clear any listed tags
 		for (vector<NFCTagInternal*>::iterator it = tags.begin(); it != tags.end(); ++it)
-		{
 			delete (*it);
-		}
 		tags.clear();
 	};
 
@@ -255,10 +286,9 @@ NFCDevice* NFC::get_device(int index) const
 
 NFCTagReader* NFC::get_tag_reader(int index)
 {
-	NFCTagReaderInternal reader(*data->devices[index]);
+	NFCTagReaderInternal* reader = new NFCTagReaderInternal(*data->devices[index]);
 
-//return reinterpret_cast<NFCTagReader*>(&reader);
-	return NULL;
+	return reinterpret_cast<NFCTagReader*>(reader);
 }
 
 

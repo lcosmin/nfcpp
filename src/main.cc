@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 
 #include "nfcpp.h"
 
@@ -26,6 +27,20 @@ int main()
     }
 
     cout << "open device (" << d->name() << "): " << d->open() << endl;
+
+    nfcpp::NFCTagReader* reader = a.get_tag_reader(0);
+
+    vector<nfcpp::NFCTag*> tags = reader->get_tags();
+    vector<nfcpp::NFCTag*>::iterator it = tags.begin();
+
+    for (; it != tags.end(); ++it)
+    {
+    	nfcpp::NFCTag* tag = *it;
+    	cout << "tag name: " << tag->name() << " uid: " << tag->uid() <<  endl;
+    }
+
+    delete reader;
+
     cout << "close device (" << d->name() << "): " << d->close() << endl;
 
     return 0;

@@ -6,7 +6,16 @@
 
 namespace nfcpp
 {
-    class NFCImpl;
+	enum TagType
+	{
+		NFC_TAG_MIFARE_ULTRALIGHT,
+		NFC_TAG_MIFARE_ULTRALIGHT_C,
+		NFC_TAG_MIFARE_CLASSIC_1K,
+		NFC_TAG_MIFARE_CLASSIC_4K,
+		NFC_TAG_MIFARE_DESFIRE,
+		NFC_TAG_UNKNOWN
+	};
+
 
     // A libnfc device
     class NFCDevice
@@ -18,26 +27,36 @@ namespace nfcpp
         virtual const std::string& name() const = 0;
     };
 
-    enum TagType
-	{
-    	NFC_TAG_MIFARE_ULTRALIGHT,
-		NFC_TAG_MIFARE_ULTRALIGHT_C,
-		NFC_TAG_MIFARE_CLASSIC_1K,
-		NFC_TAG_MIFARE_CLASSIC_4K,
-		NFC_TAG_MIFARE_DESFIRE,
-		NFC_TAG_UNKNOWN
-	};
-
-
+    // A generic tag read with the NFC card reader
     class NFCTag
     {
-    public:
-    	virtual TagType type() = 0;
-    	virtual std::string name() = 0;
-    	virtual std::string uid() = 0;
+		public:
+			virtual TagType type() = 0;
+			virtual std::string name() = 0;
+			virtual std::string uid() = 0;
     };
 
 
+    namespace mifare
+	{
+    	typedef unsigned char MiCDataBlock[16];
+    	typedef unsigned char MiCKey[6];
+    	enum MiCKeyType { A, B };
+
+		class MifareClassicTag : NFCTag
+		{
+			public:
+				virtual bool connect();
+				virtual bool disconnect();
+				virtual bool authenticate(int block, MiCKey key, enum MiCKeyType type);
+				virtual bool read(int block, MiCDataBlock* data);
+				virtual bool write(int block, MiCDataBlock data);
+		};
+    };
+
+
+
+    // A device that reads cards... really need this abstraction ?
     class NFCTagReader
     {
     public:
@@ -46,6 +65,7 @@ namespace nfcpp
 
 
     // NFC library wrapper
+    class NFCImpl;
     class NFC
     {
         public:
