@@ -132,6 +132,11 @@ namespace mifare {
 
 			bool authenticate(int block, MifareClassicKey key, enum MifareClassicKeyType type)
 			{
+				switch (type)
+				{
+				case MifareClassicKeyType.A:
+				mifare_classic_authenticate(block, key, )
+				}
 
 			}
 
