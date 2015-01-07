@@ -7,4 +7,4 @@ include_directories(include)
 set(SOURCE_FILES src/nfcpp.cc src/main.cc)
 add_executable(nfc-mifare ${SOURCE_FILES})
 
-target_link_libraries(nfc-mifare nfc)
+target_link_libraries(nfc-mifare nfc freefare)

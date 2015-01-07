@@ -17,7 +17,7 @@ int main()
         cout << "device: " << s << endl;
     }
 
-    nfcpp::INFCDevice* d = a.get_device(0);
+    nfcpp::NFCDevice * d = a.get_device(0);
 
     if (!d)
     {

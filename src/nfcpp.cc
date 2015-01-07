@@ -1,8 +1,13 @@
 #include <nfc/nfc.h>
+#include <freefare.h>
 #include <string.h>
 #include <string>
+#include <vector>
 
 #include "nfcpp.h"
+
+using namespace std;
+
 
 namespace nfcpp
 {
@@ -10,15 +15,15 @@ namespace nfcpp
 static const size_t MAX_DEVICES = 16;
 
 
-class NFCDevice : INFCDevice
+class NFCDeviceInternal : NFCDevice
 {
 public:
-    NFCDevice(nfc_context* context, nfc_connstring& str) : dev(0), ctx(context)
+    NFCDeviceInternal(nfc_context* context, nfc_connstring& str) : dev(0), ctx(context)
     {
         memcpy(conn_str, str, sizeof(str));
     }
 
-    virtual ~NFCDevice()
+    virtual ~NFCDeviceInternal()
     {
         if (dev)
             close();
@@ -50,12 +55,117 @@ public:
         return dev_name;
     }
 
+    nfc_device* device() const
+    {
+    	return dev;
+    }
+
 private:
     nfc_device* dev;
     nfc_context* ctx;
     nfc_connstring conn_str;
     std::string dev_name;
 };
+
+
+class NFCTagInternal : NFCTag
+{
+public:
+	NFCTagInternal(MifareTag t) : tag(t)
+	{
+	}
+
+	~NFCTagInternal()
+	{
+		if (tag)
+		{
+			freefare_free_tag(tag);
+			tag = NULL;
+		}
+	}
+
+	std::string name() {
+		return std::string(freefare_get_tag_friendly_name(tag));
+	}
+
+	std::string uid() {
+		return std::string(freefare_get_tag_uid(tag));
+	}
+
+	TagType type() {
+		switch (freefare_get_tag_type(tag))
+		{
+		case ULTRALIGHT:
+			return NFC_TAG_MIFARE_ULTRALIGHT;
+		case ULTRALIGHT_C:
+			return NFC_TAG_MIFARE_ULTRALIGHT_C;
+		case CLASSIC_1K:
+			return NFC_TAG_MIFARE_CLASSIC_1K;
+		case CLASSIC_4K:
+			return NFC_TAG_MIFARE_CLASSIC_4K;
+		case DESFIRE:
+			return NFC_TAG_MIFARE_DESFIRE;
+		default:
+			return NFC_TAG_UNKNOWN;
+		}
+	}
+
+private:
+	MifareTag tag;
+};
+
+
+class NFCTagReaderInternal : NFCTagReader
+{
+public:
+	NFCTagReaderInternal(NFCDeviceInternal& d) : dev(d)
+	{
+		if (!dev.is_open())
+			throw "device is not open";
+	}
+
+	~NFCTagReaderInternal()
+	{
+		clear_tags();
+	}
+
+	vector<NFCTag*> get_tags()
+	{
+		if (tags.size())
+			clear_tags();
+
+		// read tags
+		MifareTag* mf_tags = freefare_get_tags(dev.device());
+
+		if (!mf_tags)
+			throw "cannot list tags";
+
+		for (int i = 0; mf_tags[i]; i++)
+		{
+			tags.push_back(new NFCTagInternal(mf_tags[i]));
+		}
+
+		vector<NFCTag*> res;
+		for (vector<NFCTagInternal*>::const_iterator it = tags.begin(); it != tags.end(); ++it)
+			res.push_back(reinterpret_cast<NFCTag*>(*it));
+		return res;
+	}
+private:
+
+	void clear_tags()
+	{
+		// clear any listed tags
+		for (vector<NFCTagInternal*>::iterator it = tags.begin(); it != tags.end(); ++it)
+		{
+			delete (*it);
+		}
+		tags.clear();
+	};
+
+	NFCDeviceInternal& dev;
+	vector<NFCTagInternal*> tags;
+};
+
 
 
 struct NFCImpl
@@ -65,7 +175,7 @@ struct NFCImpl
     std::string libnfc_version;
 
     nfc_connstring device_names[MAX_DEVICES];
-    NFCDevice* devices[MAX_DEVICES];
+    NFCDeviceInternal * devices[MAX_DEVICES];
 
 
     NFCImpl() : ctx(0), device_count(0)
@@ -96,7 +206,7 @@ NFC::NFC()
     // ..and create objects for each
     for (size_t i = 0; i < data->device_count; i++)
     {
-        data->devices[i] = new NFCDevice(data->ctx, data->device_names[i]);
+        data->devices[i] = new NFCDeviceInternal(data->ctx, data->device_names[i]);
     }
 
 }
@@ -138,9 +248,18 @@ int NFC::get_device_name(int index, std::string &name) const
     return 0;
 }
 
-INFCDevice* NFC::get_device(int index) const
+NFCDevice* NFC::get_device(int index) const
 {
-    return reinterpret_cast<INFCDevice*>(data->devices[index]);
+    return reinterpret_cast<NFCDevice *>(data->devices[index]);
 }
+
+NFCTagReader* NFC::get_tag_reader(int index)
+{
+	NFCTagReaderInternal reader(*data->devices[index]);
+
+//return reinterpret_cast<NFCTagReader*>(&reader);
+	return NULL;
+}
+
 
 }
